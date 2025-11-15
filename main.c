@@ -1,86 +1,99 @@
 #include "shell.h"
-t_buitlin global_buitlin[] ={
-		//{.name = "cd", .func =shell_cd},
-		//{.name = "env", .func =shell_env},
-		{.name = "exit", .func =shell_exit},
-		{.name = NULL}
-};
-
+t_buitlin global_buitlin[] = {
+    //{.name = "cd", .func =shell_cd},
+    {.name = "env", .func = shell_env},
+    {.name = "exit", .func = shell_exit},
+    {.name = NULL}};
 
 int status = 0;
-		
-	
 
+void shell_launch(char **args) {
+  pid_t pid;
+  pid = fork();
+  if (pid < 0) {
+    perror("Forking failed");
+    exit(EXIT_FAILURE);
+  }
 
-
-
-void shell_exec(char **args){
-	const char* curr;
-	int i = 0;
-	while ((curr = global_buitlin[i].name)){
-		if(!strcmp(curr, args[0])){
-			status = global_buitlin[i].func(args);
-			return;
-		}
-		i++;
-	}
-
-	//shell_launch(args);
+  if (pid == 0) {
+    if (execvp(args[0], args) == -1) {
+      perror("Failed to execute Command");
+      exit(EXIT_FAILURE);
+    } 
+  }
+      
+  
+    else wait(&status);
 }
 
-char **shell_split_line(char *line){
-	char **tokens = NULL;
-	int i  = 0;
-	tokens = malloc(sizeof(char *) * 1024);
-	
-	for(char* token = strtok(line, DEL); token; token = strtok(NULL, " \t\r\n\a")) {
-		tokens[i] = token;
-		i++;
-	}
-	tokens[i] = NULL;
-	return tokens;
+void shell_exec(char **args) {
+  const char *curr;
+  int i = 0;
+  while ((curr = global_buitlin[i].name)) {
+    if (!strcmp(curr, args[0])) {
+      status = global_buitlin[i].func(args);
+      return;
+    }
+    i++;
+  }
+
+  shell_launch(args);
+}
+
+char **shell_split_line(char *line) {
+  char **tokens = NULL;
+  int i = 0;
+  tokens = malloc(sizeof(char *) * 1024);
+
+  for (char *token = strtok(line, DEL); token;
+       token = strtok(NULL, " \t\r\n\a")) {
+    tokens[i] = token;
+    i++;
+  }
+  tokens[i] = NULL;
+  return tokens;
 }
 
 char *shell_read_line(void) {
-	char *buff = NULL;
-	size_t buffsize = 0;
-	char cwd[1024];
+  char *buff = NULL;
+  size_t buffsize = 0;
 
-	if (getcwd(cwd, sizeof cwd) == NULL) {
-		perror("getcwd() error");
-	}
+  if (getline(&buff, &buffsize, stdin) == -1) {
+    free(buff);
+    buff = NULL;
+    if (feof(stdin)) {
+      p("[EOF]");
 
-	p("%s $>", cwd);
-	if (getline(&buff, &buffsize, stdin) == -1) {
-		free(buff);
-		buff = NULL;
-		if (feof(stdin)) {
-			p("[EOF]");
+    } else {
+      perror("readline");
+      exit(EXIT_FAILURE);
+    }
+  }
+  
 
-		} else {
-			perror("readline");
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	return buff;
+  return buff;
 }
 
 int main(int ac, char **av) {
-	char *line;
-	char **args;
-	printBanner();
-	while ((line = shell_read_line())) {
+  char *line;
+  char **args;
+  printBanner();
+  while (1) {
+    char cwd[1024];
 
-		args = shell_split_line(line);
-		shell_exec(args);
-		
-		
+    if (getcwd(cwd, sizeof cwd) == NULL) {
+      perror("getcwd() error");
+    }
 
+    p("%s $>", cwd);
+    line = shell_read_line();
+    if(!line) break;
+    args = shell_split_line(line);
+    shell_exec(args);
 
-		free(line);
-		free(args);
-	}
+    free(line);
+    free(args);
+  }
 
-	return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }

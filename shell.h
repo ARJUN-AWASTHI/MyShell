@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h> 
 
 
 #define p(...) printf(__VA_ARGS__)
@@ -17,6 +19,7 @@ typedef struct buitlin{
 }t_buitlin;
 
 int shell_exit(char **); 
+int shell_env(char **); 
 
 
 void printBanner();
