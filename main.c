@@ -1,13 +1,13 @@
 #include "shell.h"
-t_buitlin global_buitlin[] = {
-    //{.name = "cd", .func =shell_cd},
-    {.name = "env", .func = shell_env},
-    {.name = "exit", .func = shell_exit},
-    {.name = NULL}};
+t_buitlin global_buitlin[] = {{.name = "clear", .func = shell_clear},
+                              {.name = "env", .func = shell_env},
+                              {.name = "exit", .func = shell_exit},
+                              {.name = "cd", .func = shell_cd},
+                              {.name = NULL}};
 
 int status = 0;
 
-void shell_launch(char **args) {
+void shell_launch(char** args) {
   pid_t pid;
   pid = fork();
   if (pid < 0) {
@@ -19,15 +19,15 @@ void shell_launch(char **args) {
     if (execvp(args[0], args) == -1) {
       perror("Failed to execute Command");
       exit(EXIT_FAILURE);
-    } 
+    }
   }
-      
-  
-    else wait(&status);
+
+  else
+    wait(&status);
 }
 
-void shell_exec(char **args) {
-  const char *curr;
+void shell_exec(char** args) {
+  const char* curr;
   int i = 0;
   while ((curr = global_buitlin[i].name)) {
     if (!strcmp(curr, args[0])) {
@@ -39,13 +39,13 @@ void shell_exec(char **args) {
 
   shell_launch(args);
 }
-
-char **shell_split_line(char *line) {
-  char **tokens = NULL;
+//ADD Functionality of pipes 
+char** shell_split_line(char* line) {
+  char** tokens = NULL;
   int i = 0;
-  tokens = malloc(sizeof(char *) * 1024);
+  tokens = malloc(sizeof(char*) * 1024);
 
-  for (char *token = strtok(line, DEL); token;
+  for (char* token = strtok(line, DEL); token;
        token = strtok(NULL, " \t\r\n\a")) {
     tokens[i] = token;
     i++;
@@ -54,30 +54,18 @@ char **shell_split_line(char *line) {
   return tokens;
 }
 
-char *shell_read_line(void) {
-  char *buff = NULL;
-  size_t buffsize = 0;
+int main(int ac, char** av) {
+  char* line;
+  char** args;
+  rl_bind_key('\t', rl_complete);
+  rl_attempted_completion_function = my_completion;
 
-  if (getline(&buff, &buffsize, stdin) == -1) {
-    free(buff);
-    buff = NULL;
-    if (feof(stdin)) {
-      p("[EOF]");
-
-    } else {
-      perror("readline");
-      exit(EXIT_FAILURE);
-    }
-  }
-  
-
-  return buff;
-}
-
-int main(int ac, char **av) {
-  char *line;
-  char **args;
+  printf("\033[H\033[J");
   printBanner();
+
+  // char* home = getenv("HOME");
+  char* home = HOME;
+  chdir(home);
   while (1) {
     char cwd[1024];
 
@@ -85,15 +73,22 @@ int main(int ac, char **av) {
       perror("getcwd() error");
     }
 
-    p("%s $>", cwd);
-    line = shell_read_line();
-    if(!line) break;
+    char prompt[1060];  // enough room for cwd + "$ >"
+    snprintf(prompt, sizeof(prompt), "%s $ > ", cwd);
+
+    line = readline(prompt);
+    if (!line)
+      break;
+    else if (strcmp(line, "") == 0)
+      continue;
+    if (*line) add_history(line);
+
     args = shell_split_line(line);
     shell_exec(args);
 
     free(line);
     free(args);
   }
-
+  printf("\033[H\033[J");
   return EXIT_SUCCESS;
 }
